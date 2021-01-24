@@ -45,9 +45,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
             updatePos();
         }
 
-        if(rAF === null && this.scroll.y !== 0){
-            update();
-        }
+        
     }
 
     const onSelfDetection = (e) => {
@@ -81,6 +79,10 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     const updatePos = () => {
         calcScrollTop();
         this.pos = calcPercentage();
+
+        if(rAF === null && this.scroll.y !== 0){
+            update();
+        }
     }
 
     const initScrollBar = () => {
@@ -122,10 +124,6 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
                 
                 oldMouse.y = e.pageY;
             }
-
-            if(rAF === null && this.scroll.y !== 0){
-                update();
-            }
         }
     }
 
@@ -150,6 +148,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         document.removeEventListener('mousewheel', onMouseWheel, false);
         document.removeEventListener('mousemove', onSelfDetection, false);
         window.removeEventListener('resize', onResize, false);
+        removeScrollBarEvent();
     }
 
     const initScrollBarEvent = () => {
@@ -162,6 +161,16 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
 
     this.getPos = () => {
         return pos;
+    }
+
+    this.to = (y) => {
+        this.scroll.y = -y;
+        updatePos(y);
+    }
+
+    this.set = (y) => {
+        this.to(y);
+        this.easePos.y = this.pos.y;
     }
 
     this.on = () => {
