@@ -22,15 +22,19 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         rAF = requestAnimationFrame(update);
 
         this.easePos.y += (this.pos.y - this.easePos.y) * .1; // 0 - 1
-        // console.log(+this.easePos.y.toFixed(5) )
-        if(+this.easePos.y.toFixed(5) >= 0){
+
+        if(+this.easePos.y.toFixed(6) < 0){
+            if(+this.easePos.y.toFixed(6) === +this.pos.y.toFixed(6)){
+                this.off();
+            }
+            else{
+                updateScrollWrapPos(this.easePos);
+                udpateScrollBarPos(this.easePos);
+            }
+        }else{
             scrollWrapElem.style.transform = 'none';
             scrollBarThumbElem.style.transform = 'none';
             this.off();
-        }
-        else{
-            updateScrollWrapPos(this.easePos);
-            udpateScrollBarPos(this.easePos);
         }
     }
 
@@ -74,9 +78,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         calcScrollTop();
         this.pos = calcPercentage();
 
-        if(rAF === null && this.scroll.y !== 0){
-            update();
-        }
+        this.on();
     }
 
     const initScrollBar = () => {
@@ -109,7 +111,6 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         if(this.isSelf){
             this.delta.x = (e.wheelDeltaX || e.deltaX) || (e.wheelDeltaY || e.deltaY) * -1;
             this.delta.y = e.wheelDeltaY || e.deltaY * -1;
-
             if(isFirefox){
                 this.delta.x *= 15; // 15 is firefox multiplier for scroll
                 this.delta.y *= 15; // 15 is firefox multiplier for scroll
@@ -226,8 +227,10 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
     this.on = () => {
-        console.log('on')
-        if(rAF === null) update();
+        if(rAF === null){
+            console.log('on')
+            update();
+        }
     }
 
     this.off = () => {
