@@ -6,8 +6,11 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     this.isSelf = false;
     let rAF = null;
     let clickedScrollBar = false;
-    let oldMouse = { x:0, y:0}
-
+    let mouseDownPos = { x:0, y:0 }
+    let touchStartPos = { x:0, y:0 }
+    const hasWheelEvent = "onwheel" in document;
+    const hasMouseWheelEvent = "onmousewheel" in document;
+    const isFirefox = navigator.userAgent.indexOf("Firefox") > -1;
 
     const init = () => {
         initScrollEvent();
@@ -35,20 +38,13 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         scrollWrapElem.style.transform = setTransform(`${pos.x * 100}%, ${pos.y * 100}%, 0`);
     }
 
-    const onMouseWheel = (e) => {
-        // let e = event.touches ? event.touches[0] : event;
-        this.delta.x = (e.wheelDeltaX || e.deltaX) || (e.wheelDeltaY || e.deltaY) * -1;
-        this.delta.y = e.wheelDeltaY || e.deltaY * -1;
-
-        if(this.isSelf){
-            this.scroll.y += this.delta.y;
-            updatePos();
-        }
-    }
-
     const onSelfDetection = (e) => {
-        const target = e.target.closest(`.${parentElem.className}`);
-        this.isSelf = selfDetection(target);
+        const target = e.target || e.srcElement;
+
+        if(typeof target.closest === 'function'){
+            const closestElem = target.closest(`.${parentElem.className}`);
+            this.isSelf = selfDetection(closestElem);
+        }
     }
 
     const selfDetection = (_target) => {
@@ -66,7 +62,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
     const calcPercentage = () => {
-        let y = this.scroll.y / scrollWrapElem.offsetHeight; // 0 - .5
+        let y = this.scroll.y / scrollWrapElem.offsetHeight;
 
         return {
             x: 0, 
@@ -105,12 +101,61 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         scrollBarThumbElem.style.transform = setTransform(`0, ${pos.y}px, 0`);
     }
 
+    ////////////////////////
+    ////////////////////////
+    ////////////////////////
+
+    const onMouseWheel = (e) => {
+        if(this.isSelf){
+            this.delta.x = (e.wheelDeltaX || e.deltaX) || (e.wheelDeltaY || e.deltaY) * -1;
+            this.delta.y = e.wheelDeltaY || e.deltaY * -1;
+
+            if(isFirefox){
+                this.delta.x *= 15; // 15 is firefox multiplier for scroll
+                this.delta.y *= 15; // 15 is firefox multiplier for scroll
+            }
+
+            this.scroll.y += this.delta.y;
+            updatePos();
+        }
+    }
+
+    const onTouchStart = (event) => {
+        let e = event.touches ? event.touches[0] : event;
+        onSelfDetection(e);
+
+        if(this.isSelf){
+            touchStartPos.x = e.pageX;
+            touchStartPos.y = e.pageY;
+            document.addEventListener('touchmove', onTouchMove, false);
+            document.addEventListener('touchend', onTouchEnd, false);
+        }
+    }
+
+    const onTouchMove = (event) => {
+        let e = event.touches ? event.touches[0] : event;
+        this.delta.x = (e.pageX - touchStartPos.x) * 2;
+        this.delta.y = (e.pageY - touchStartPos.y) * 2;
+
+        if(this.isSelf){
+            this.scroll.y += this.delta.y;
+            updatePos();
+        }
+
+        touchStartPos.x = e.pageX;
+        touchStartPos.y = e.pageY;
+    }
+
+    const onTouchEnd = () => {
+        document.removeEventListener('touchmove', onTouchMove, false);
+    }
+
     const onClickScrollBar = (event) => {
         let e = event.touches ? event.touches[0] : event;
         e.preventDefault();
         clickedScrollBar = true;
-        oldMouse.x = e.pageX;
-        oldMouse.y = e.pageY;
+        mouseDownPos.x = e.pageX;
+        mouseDownPos.y = e.pageY;
 
         document.addEventListener('mousemove', onMoveScrollBar, false);
         document.addEventListener('mouseup', onReleaseScrollBar, false);
@@ -120,12 +165,12 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         let e = event.touches ? event.touches[0] : event;
         if(clickedScrollBar){
             if(this.isSelf){
-                const y = oldMouse.y - e.pageY;
-                
+                const y = mouseDownPos.y - e.pageY;
+
                 this.scroll.y += y * (scrollWrapElem.offsetHeight / parentElem.offsetHeight);
                 updatePos();
                 
-                oldMouse.y = e.pageY;
+                mouseDownPos.y = e.pageY;
             }
         }
     }
@@ -142,14 +187,18 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
     const initScrollEvent = () => {
-        document.addEventListener('mousewheel', onMouseWheel, false);
+        if(hasWheelEvent) document.addEventListener("wheel", onMouseWheel, false);
+        if(hasMouseWheelEvent) document.addEventListener('mousewheel', onMouseWheel, false);
         document.addEventListener('mousemove', onSelfDetection, false);
+        document.addEventListener('touchstart', onTouchStart, false);
         window.addEventListener('resize', onResize, false);
     }
     
     const removeEvent = () => {
-        document.removeEventListener('mousewheel', onMouseWheel, false);
+        if(hasWheelEvent) document.removeEventListener("wheel", onMouseWheel, false);
+        if(hasMouseWheelEvent) document.removeEventListener('mousewheel', onMouseWheel, false);
         document.removeEventListener('mousemove', onSelfDetection, false);
+        document.removeEventListener('touchstart', onTouchStart, false);
         window.removeEventListener('resize', onResize, false);
         removeScrollBarEvent();
     }
