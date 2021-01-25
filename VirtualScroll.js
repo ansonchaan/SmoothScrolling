@@ -44,8 +44,6 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
             this.scroll.y += this.delta.y;
             updatePos();
         }
-
-        
     }
 
     const onSelfDetection = (e) => {
@@ -91,7 +89,12 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
 
     const updateScrollBarHeight = () => {
         const scrollBarHeight = (parentElem.offsetHeight / scrollWrapElem.offsetHeight) * 100;
-        scrollBarThumbElem.style.height = scrollBarHeight + "%";
+        if(scrollBarHeight >= 100)
+            scrollBarWrapElem.classList.add('hide');
+        else{
+            scrollBarWrapElem.classList.remove('hide');
+            scrollBarThumbElem.style.height = scrollBarHeight + "%";
+        }
     }
 
     const udpateScrollBarPos = (_pos) => {
@@ -182,6 +185,11 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         console.log('off')
         cancelAnimationFrame(rAF);
         rAF = null;
+    }
+
+    this.reset = () => {
+        this.set(0);
+        onResize();
     }
 
     this.destroy = () => {
