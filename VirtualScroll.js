@@ -4,6 +4,8 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     this.easePos = { x:0, y:0 }
     this.delta = { x:0, y:0 }
     this.isSelf = false;
+    this.namespace = 'vs';
+    this.listeners = {};
     let rAF = null;
     let clickedScrollBar = false;
     let mouseDownPos = { x:0, y:0 }
@@ -22,10 +24,11 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         rAF = requestAnimationFrame(update);
 
         this.easePos.y += (this.pos.y - this.easePos.y) * .1; // 0 - 1
+        dispatchScroll();
 
         if(+this.easePos.y.toFixed(6) < 0){
             if(+this.easePos.y.toFixed(6) === +this.pos.y.toFixed(6)){
-                this.off();
+                this.disable();
             }
             else{
                 updateScrollWrapPos(this.easePos);
@@ -34,8 +37,9 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         }else{
             scrollWrapElem.style.transform = 'none';
             scrollBarThumbElem.style.transform = 'none';
-            this.off();
+            this.disable();
         }
+
     }
 
     const updateScrollWrapPos = (pos) => {
@@ -78,7 +82,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         calcScrollTop();
         this.pos = calcPercentage();
 
-        this.on();
+        this.enable();
     }
 
     const initScrollBar = () => {
@@ -212,13 +216,51 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         scrollBarThumbElem.removeEventListener('mousedown', onClickScrollBar, false);
     }
 
+
+    const dispatchScroll = () => {
+        const scrollEvent = new Event(this.namespace + 'scroll');
+        scrollWrapElem.dispatchEvent(scrollEvent);
+    }
+
+    const setEvents = (eventName, func) => {
+        if (!this.listeners[eventName]) {
+            this.listeners[eventName] = [];
+        }
+
+        const list = this.listeners[eventName];
+        list.push(func);
+        scrollWrapElem.addEventListener(this.namespace + eventName, checkFunc, false);
+    }
+
+    const unsetEvents = (eventName) => {
+        if (!this.listeners[eventName]) return;
+
+        scrollWrapElem.removeEventListener(this.namespace + eventName, checkFunc, false);
+        this.listeners = {};
+    }
+
+    const checkFunc = (e) => {
+        const eventName = e.type.replace(this.namespace, '');
+        const funcs = this.listeners[eventName];
+
+        funcs.forEach((func)=>{
+            switch(eventName){
+                case 'scroll':
+                    return func(this.easePos);
+                default:
+                    return func();
+            }
+        })
+    }
+
+
     this.getPos = () => {
         return pos;
     }
 
     this.to = (y) => {
         this.scroll.y = -y;
-        updatePos(y);
+        updatePos();
     }
 
     this.set = (y) => {
@@ -226,15 +268,23 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         this.easePos.y = this.pos.y;
     }
 
-    this.on = () => {
+    this.on = (event, func) => {
+        setEvents(event, func);
+    }
+
+    this.off = (event) => {
+        unsetEvents(event);
+    }
+
+    this.enable = () => {
         if(rAF === null){
-            console.log('on')
+            console.log('enable')
             update();
         }
     }
 
-    this.off = () => {
-        console.log('off')
+    this.disable = () => {
+        console.log('disable')
         cancelAnimationFrame(rAF);
         rAF = null;
     }
@@ -245,7 +295,7 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
     this.destroy = () => {
-        this.off();
+        this.disable();
         removeEvent();
     }
 

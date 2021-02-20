@@ -10,7 +10,6 @@ const SmoothScrolling = forwardRef((props, ref) => {
 
     useEffect(()=>{
         vs.current = new VirtualScroll(parent.current, scrollWrap.current, scrollBarWrap.current, scrollBarThumb.current);
-        vs.current.on();
         if(ref) ref.current = vs.current;
         
         return () => {
