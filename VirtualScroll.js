@@ -1,8 +1,10 @@
 const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, scrollBarThumbElem){
     this.scroll = { x:0, y:0 };
     this.pos = { x:0, y:0 }
+    this.normalizedPos = { x:0, y:0 }
     this.easePos = { x:0, y:0 }
     this.delta = { x:0, y:0 }
+    // this.speed = { x:0, y:0 }
     this.isSelf = false;
     this.namespace = 'vs';
     this.listeners = {};
@@ -10,6 +12,8 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     let clickedScrollBar = false;
     let mouseDownPos = { x:0, y:0 }
     let touchStartPos = { x:0, y:0 }
+    let contentHeight = scrollWrapElem.offsetHeight - parentElem.offsetHeight;
+    let contentHeightPercentage = contentHeight / scrollWrapElem.offsetHeight;
     const hasWheelEvent = "onwheel" in document;
     const hasMouseWheelEvent = "onmousewheel" in document;
     const isFirefox = navigator.userAgent.indexOf("Firefox") > -1;
@@ -39,7 +43,14 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
             scrollBarThumbElem.style.transform = 'none';
             this.disable();
         }
+    }
 
+    const updateContentHeight = () => {
+        contentHeight = scrollWrapElem.offsetHeight - parentElem.offsetHeight;
+    }
+
+    const updateContentHeightPercentage = () => {
+        contentHeightPercentage = contentHeight / scrollWrapElem.offsetHeight;
     }
 
     const updateScrollWrapPos = (pos) => {
@@ -65,7 +76,6 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
 
     const calcScrollTop = (_y = 0) => {
         let y = _y || this.scroll.y;
-        const contentHeight = scrollWrapElem.offsetHeight - parentElem.offsetHeight;
         this.scroll.y = Math.max(Math.min(0, y), -contentHeight);
     }
 
@@ -78,9 +88,14 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         };
     }
 
+    const normalizedPos = () => {
+        this.normalizedPos = {x:0, y:this.pos.y / contentHeightPercentage};
+    }
+
     const updatePos = () => {
         calcScrollTop();
         this.pos = calcPercentage();
+        normalizedPos();
 
         this.enable();
     }
@@ -115,12 +130,13 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
         if(this.isSelf){
             this.delta.x = (e.wheelDeltaX || e.deltaX) || (e.wheelDeltaY || e.deltaY) * -1;
             this.delta.y = e.wheelDeltaY || e.deltaY * -1;
+
             if(isFirefox){
                 this.delta.x *= 15; // 15 is firefox multiplier for scroll
                 this.delta.y *= 15; // 15 is firefox multiplier for scroll
             }
 
-            this.scroll.y += this.delta.y;
+            this.scroll.y += this.delta.y * .1;
             updatePos();
         }
     }
@@ -188,6 +204,8 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
     const onResize = () => {
+        updateContentHeight();
+        updateContentHeightPercentage();
         updateScrollBarHeight();
     }
 
@@ -242,11 +260,11 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     const checkFunc = (e) => {
         const eventName = e.type.replace(this.namespace, '');
         const funcs = this.listeners[eventName];
-
+        
         funcs.forEach((func)=>{
             switch(eventName){
                 case 'scroll':
-                    return func(this.easePos);
+                    return func(this.normalizedPos, this.delta);
                 default:
                     return func();
             }
@@ -254,8 +272,12 @@ const VirtualScroll = function(parentElem, scrollWrapElem, scrollBarWrapElem, sc
     }
 
 
-    this.getPos = () => {
-        return pos;
+    // this.getPos = () => {
+    //     return pos;
+    // }
+
+    this.getContentHeightPercentage = () => {
+        return contentHeightPercentage;
     }
 
     this.to = (y) => {
